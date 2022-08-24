@@ -20,6 +20,7 @@ class NCF(pl.LightningModule):
 
     def __init__(self, num_users, num_items, ratings, all_movie_ids):
         super().__init__()
+        self.save_hyperparameters()
         self.user_embedding = nn.Embedding(num_embeddings=num_users, embedding_dim=8)
         self.item_embedding = nn.Embedding(num_embeddings=num_items, embedding_dim=8)
         self.fc1 = nn.Linear(in_features=16, out_features=64)

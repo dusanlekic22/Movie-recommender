@@ -2,7 +2,8 @@
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-import numpy
+from abc import ABC
+
 import pandas as pd
 import numpy as np
 import pytorch_lightning as pl
@@ -86,13 +87,21 @@ if __name__ == '__main__':
     num_items = data['movieId'].max() + 1
     all_movieIds = data['movieId'].unique()
     print(train_data.dtypes)
-    model = NCF(torch.tensor(num_users).to(torch.int64), torch.tensor(num_items).to(torch.int64), train_data,
+    checkpoint = torch.load('checkpoints/epoch=0-step=2520-v1.ckpt', map_location=lambda storage, loc: storage)
+    print(checkpoint["hyper_parameters"])
+    hyper_params = checkpoint["hyper_parameters"]
+
+    model = NCF.load_from_checkpoint('checkpoints/epoch=0-step=2520-v1.ckpt',
+                                     num_users=hyper_params["num_users"], num_items=hyper_params["num_items"],
+                                     ratings=hyper_params["ratings"],
+                                     all_movie_ids=hyper_params["all_movie_ids"])
+
+    if model is None:
+        model = NCF(torch.tensor(num_users).to(torch.int64), torch.tensor(num_items).to(torch.int64), train_data,
                 all_movieIds)
-
-    trainer = pl.Trainer(max_epochs=5, reload_dataloaders_every_epoch=True,
-                         progress_bar_refresh_rate=50, logger=False, checkpoint_callback=False)
-
-    trainer.fit(model)
+        trainer = pl.Trainer(max_epochs=1, reload_dataloaders_every_epoch=True,
+                         progress_bar_refresh_rate=50, logger=False)
+        trainer.fit(model)
 
     evaluate(data, test_data)
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
