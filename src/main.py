@@ -113,17 +113,21 @@ if __name__ == '__main__':
     checkpoint = torch.load('checkpoints/epoch=0-step=2520-v1.ckpt', map_location=lambda storage, loc: storage)
     hyper_params = checkpoint["hyper_parameters"]
 
-    model = NCF.load_from_checkpoint('checkpoints/epoch=0-step=2520-v1.ckpt',
-                                     num_users=hyper_params["num_users"], num_items=hyper_params["num_items"],
-                                     ratings=hyper_params["ratings"],
-                                     all_movie_ids=hyper_params["all_movie_ids"])
+    print("Train the model(1) or use the already trained one(2)?")
+    choice = input()
 
-    if model is None:
+    if choice == '1':
         model = NCF(torch.tensor(num_users).to(torch.int64), torch.tensor(num_items).to(torch.int64), train_data,
-                all_movieIds)
+                    all_movieIds)
         trainer = pl.Trainer(max_epochs=1, reload_dataloaders_every_epoch=True,
-                         progress_bar_refresh_rate=50, logger=False)
+                             progress_bar_refresh_rate=50, logger=False)
         trainer.fit(model)
+    else:
+        model = NCF.load_from_checkpoint('checkpoints/epoch=0-step=2520-v1.ckpt',
+                                         num_users=hyper_params["num_users"], num_items=hyper_params["num_items"],
+                                         ratings=hyper_params["ratings"],
+                                         all_movie_ids=hyper_params["all_movie_ids"])
+
     while True:
         print("Overall testing(1) or single user testing(2)?")
         test = input()
