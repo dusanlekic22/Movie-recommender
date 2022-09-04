@@ -82,8 +82,9 @@ def get_recommendations(ratings, test_ratings, user_id):
     user_interacted_items = ratings.groupby('userId')['movieId'].apply(list).to_dict()
 
     for (u, i) in test_user_item_set:
-        if u == user_id:
-            interacted_items = user_interacted_items[user_id]
+        recommendations = ''
+        if u == int(user_id):
+            interacted_items = user_interacted_items[u]
             not_interacted_items = set(all_movieIds) - set(interacted_items)
             selected_not_interacted = list(np.random.choice(list(not_interacted_items), 99))
             test_items = selected_not_interacted + [i]
@@ -91,12 +92,10 @@ def get_recommendations(ratings, test_ratings, user_id):
                                                 torch.tensor(test_items)).detach().numpy())
             top10_items = [test_items[i] for i in np.argsort(predicted_labels)[::-1][0:10].tolist()]
             print(top10_items)
-            recommendations = ''
             for it in top10_items:
                 recommendations += movies.loc[movies['movieId'] == it, 'title'].item() + '\n'
             print("Tested is:", movies.loc[movies['movieId'] == i, 'title'].item())
             print("We recommended you:\n", recommendations)
-
 
 
 # Press the green button in the gutter to run the script.
@@ -127,7 +126,10 @@ if __name__ == '__main__':
         trainer.fit(model)
     while True:
         print("Overall testing(1) or single user testing(2)?")
-        if input() == '1':
+        test = input()
+        if test == '':
+            break
+        elif test == '1':
             evaluate(data, test_data)
         else:
             print("User Id:")
