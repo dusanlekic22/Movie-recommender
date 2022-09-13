@@ -12,47 +12,44 @@ import torch
 from src.ncf import NCF
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
 def import_data():
     np.random.seed(123)
 
-    ratings = pd.read_csv('../data/ratings.csv')
+    data = pd.read_csv('../data/ratings.csv')
 
-    rand_user_ids = np.random.choice(ratings['userId'].unique(),
-                                     size=int(len(ratings['userId'].unique()) * 0.01),
+    # subset the data
+    rand_user_ids = np.random.choice(data['userId'].unique(),
+                                     size=int(len(data['userId'].unique()) * 0.2),
                                      replace=False)
 
-    ratings = ratings.loc[ratings['userId'].isin(rand_user_ids)]
+    data = data.loc[data['userId'].isin(rand_user_ids)]
 
-    return ratings
+    return data
 
 
-def split_data(ratings):
-    ratings['rank_latest'] = ratings.groupby(['userId'])['timestamp'].rank(method='first', ascending=False)
+def split_data(reviews):
+    reviews['rank_latest'] = reviews.groupby(['userId'])['timestamp'].rank(method='first', ascending=False)
 
-    train_ratings = ratings[ratings['rank_latest'] != 1]
-    test_ratings = ratings[ratings['rank_latest'] == 1]
+    # split the train/test split by the latest rating
+    train_reviews = reviews[reviews['rank_latest'] != 1]
+    test_reviews = reviews[reviews['rank_latest'] == 1]
 
     # drop columns that we no longer need
-    train_ratings = train_ratings[['userId', 'movieId', 'rating']]
-    test_ratings = test_ratings[['userId', 'movieId', 'rating']]
+    train_reviews = train_reviews[['userId', 'movieId', 'rating']]
+    test_reviews = test_reviews[['userId', 'movieId', 'rating']]
 
     # set rating to label if the user has watched the movie
-    train_ratings.loc[:, 'rating'] = 1
+    train_reviews.loc[:, 'rating'] = 1
 
-    return train_ratings, test_ratings
+    return train_reviews, test_reviews
 
 
-def evaluate(ratings, test_ratings):
+def evaluate(reviews, test_reviews):
     # User-item pairs for testing
-    test_user_item_set = set(zip(test_ratings['userId'], test_ratings['movieId']))
+    test_user_item_set = set(zip(test_reviews['userId'], test_reviews['movieId']))
 
     # Dict of all items that are interacted with by each user
-    user_interacted_items = ratings.groupby('userId')['movieId'].apply(list).to_dict()
+    user_interacted_items = reviews.groupby('userId')['movieId'].apply(list).to_dict()
 
     hits = []
     for (u, i) in test_user_item_set:
@@ -74,12 +71,12 @@ def evaluate(ratings, test_ratings):
     print("The Hit Ratio @ 10 is {:.2f}".format(np.average(hits)))
 
 
-def get_recommendations(ratings, test_ratings, user_id):
+def get_recommendations(reviews, test_reviews, user_id):
     movies = pd.read_csv('../data/movies.csv')
-    test_user_item_set = set(zip(test_ratings['userId'], test_ratings['movieId']))
+    test_user_item_set = set(zip(test_reviews['userId'], test_reviews['movieId']))
 
     # Dict of all items that are interacted with by each user
-    user_interacted_items = ratings.groupby('userId')['movieId'].apply(list).to_dict()
+    user_interacted_items = reviews.groupby('userId')['movieId'].apply(list).to_dict()
 
     for (u, i) in test_user_item_set:
         recommendations = ''
@@ -100,16 +97,15 @@ def get_recommendations(ratings, test_ratings, user_id):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
 
-    data = import_data()
-    #print(torch.cuda.is_available(), torch.cuda.device_count())
+    subdata = import_data()
 
-    train_data, test_data = split_data(data)
+    train_data, test_data = split_data(subdata)
 
-    num_users = data['userId'].max() + 1
-    num_items = data['movieId'].max() + 1
-    all_movieIds = data['movieId'].unique()
+    num_users = subdata['userId'].max() + 1
+    num_items = subdata['movieId'].max() + 1
+    all_movieIds = subdata['movieId'].unique()
+
     checkpoint = torch.load('checkpoints/epoch=0-step=2520-v1.ckpt', map_location=lambda storage, loc: storage)
     hyper_params = checkpoint["hyper_parameters"]
 
@@ -119,7 +115,7 @@ if __name__ == '__main__':
     if choice == '1':
         model = NCF(torch.tensor(num_users).to(torch.int64), torch.tensor(num_items).to(torch.int64), train_data,
                     all_movieIds)
-        trainer = pl.Trainer(max_epochs=1, reload_dataloaders_every_epoch=True,
+        trainer = pl.Trainer(max_epochs=3, reload_dataloaders_every_epoch=True,
                              progress_bar_refresh_rate=50, logger=False)
         trainer.fit(model)
     else:
@@ -134,9 +130,9 @@ if __name__ == '__main__':
         if test == '':
             break
         elif test == '1':
-            evaluate(data, test_data)
+            evaluate(subdata, test_data)
         else:
             print("User Id:")
             x = input()
-            get_recommendations(data, test_data, x)
+            get_recommendations(subdata, test_data, x)
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
